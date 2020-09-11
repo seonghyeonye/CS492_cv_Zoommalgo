@@ -16,7 +16,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
-# from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 
@@ -28,15 +27,10 @@ import torch.nn.functional as F
 from ImageDataLoader import SimpleImageLoader
 from models import Res18, Res50, Dense121, Res18_basic
 
-import glob
-
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
-# IS_ON_NSML = False
 
 NUM_CLASSES = 265
-if not IS_ON_NSML:
-    DATASET_PATH = '../semi-sup-learning/fashion_dataset_2020fall'
 
 def top_n_accuracy_score(y_true, y_prob, n=5, normalize=True):
     num_obs, num_labels = y_prob.shape
@@ -379,9 +373,6 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
     weight_scale = AverageMeter()
     acc_top1 = AverageMeter()
     acc_top5 = AverageMeter()
-    # avg_loss = 0.0
-    # avg_top1 = 0.0
-    # avg_top5 = 0.0
     
     model.train()
     
@@ -416,8 +407,6 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             if use_gpu :
                 inputs_x, targets_x = inputs_x.cuda(), targets_x.cuda()
                 inputs_u1, inputs_u2 = inputs_u1.cuda(), inputs_u2.cuda()    
-            # inputs_x, targets_x = Variable(inputs_x), Variable(targets_x)
-            # inputs_u1, inputs_u2 = Variable(inputs_u1), Variable(inputs_u2)
             
             with torch.no_grad():
                 # compute guessed labels of unlabel samples
@@ -497,21 +486,6 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
                 out = True
                 break
         
-        # avg_loss += loss.item()
-        # avg_top1 += acc_top1b
-        # avg_top5 += acc_top5b  
-        
-        # if batch_idx % opts.log_interval == 0:
-        #     print('Train Epoch:{} [{}/{}] Loss:{:.4f}({:.4f}) Top-1:{:.2f}%({:.2f}%) Top-5:{:.2f}%({:.2f}%) '.format( 
-        #         epoch, batch_idx *inputs_x.size(0), len(train_loader.dataset), losses.val, losses.avg, acc_top1.val, acc_top1.avg, acc_top5.val, acc_top5.avg))
-        
-        # nCnt += 1 
-        
-    # avg_loss =  float(avg_loss/nCnt)
-    # avg_top1 = float(avg_top1/nCnt)
-    # avg_top5 = float(avg_top5/nCnt)
-    
-    # return avg_loss, avg_top1, avg_top5    
     return losses.avg, losses_x.avg, losses_un.avg, acc_top1.avg, acc_top5.avg
 
 
@@ -525,7 +499,6 @@ def validation(opts, validation_loader, model, epoch, use_gpu):
             inputs, labels = data
             if use_gpu :
                 inputs = inputs.cuda()
-            # inputs = Variable(inputs)
             nCnt +=1
             embed_fea, preds = model(inputs)
 
@@ -536,7 +509,6 @@ def validation(opts, validation_loader, model, epoch, use_gpu):
 
         avg_top1 = float(avg_top1/nCnt)   
         avg_top5= float(avg_top5/nCnt)   
-        # print('Test Epoch:{} Top1_acc_val:{:.2f}% Top5_acc_val:{:.2f}% '.format(epoch, avg_top1, avg_top5))
     
     if IS_ON_NSML:
         nsml.report(step=epoch, avg_top1=avg_top1, avg_top5=avg_top5)
