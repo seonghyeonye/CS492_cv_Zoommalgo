@@ -269,9 +269,11 @@ def main():
         model.cuda()
         ema_model.cuda()
 
+    model_for_test = ema_model # change this to model if ema_model is not used.
+
     ### DO NOT MODIFY THIS BLOCK ###
     if IS_ON_NSML:
-        bind_nsml(ema_model)
+        bind_nsml(model_for_test)
         if opts.pause:
             nsml.paused(scope=locals())
     ################################
