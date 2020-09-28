@@ -198,14 +198,14 @@ parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
-parser.add_argument('--name',default='Res18baseMM', type=str, help='output model name')
+parser.add_argument('--name',default='Res18_weight_high', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
 parser.add_argument('--batchsize', default=200, type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
 parser.add_argument('--momentum', type=float, default=0.9, metavar='LR', help=' ')
-parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate')
+parser.add_argument('--lr', type=float, default=2e-4, metavar='LR', help='learning rate')
 parser.add_argument('--imResize', default=256, type=int, help='')
 parser.add_argument('--imsize', default=224, type=int, help='')
 parser.add_argument('--ema_decay', type=float, default=0.999, help='ema decay rate (0: no ema model)')
@@ -216,8 +216,8 @@ parser.add_argument('--save_epoch', type=int, default=50, help='saving epoch int
 
 # hyper-parameters for mix-match
 parser.add_argument('--alpha', default=0.75, type=float)
-parser.add_argument('--lambda-u', default=75, type=float)
-parser.add_argument('--T', default=0.5, type=float)
+parser.add_argument('--lambda-u', default=250, type=float)
+parser.add_argument('--T', default=0.25, type=float)
 
 ### DO NOT MODIFY THIS BLOCK ###
 # arguments for nsml 
@@ -289,13 +289,13 @@ def main():
         # Set dataloader
         train_ids, val_ids, unl_ids = split_ids(os.path.join(DATASET_PATH, 'train/train_label'), 0.2)
         print('found {} train, {} validation and {} unlabeled images'.format(len(train_ids), len(val_ids), len(unl_ids)))
+        color_jitter = transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
         train_loader = torch.utils.data.DataLoader(
             SimpleImageLoader(DATASET_PATH, 'train', train_ids,
                               transform=transforms.Compose([
                                   transforms.Resize(opts.imResize),
                                   transforms.RandomResizedCrop(opts.imsize),
-                                  transforms.RandomHorizontalFlip(),
-                                  transforms.RandomVerticalFlip(),
+                                  transforms.RandomApply([color_jitter], p=0.8),
                                   transforms.ToTensor(),
                                   transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),])),
                                 batch_size=opts.batchsize, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
@@ -306,8 +306,7 @@ def main():
                               transform=transforms.Compose([
                                   transforms.Resize(opts.imResize),
                                   transforms.RandomResizedCrop(opts.imsize),
-                                  transforms.RandomHorizontalFlip(),
-                                  transforms.RandomVerticalFlip(),
+                                  transforms.RandomApply([color_jitter], p=0.8),
                                   transforms.ToTensor(),
                                   transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),])),
                                 batch_size=opts.batchsize, shuffle=True, num_workers=0, pin_memory=True, drop_last=True)
@@ -346,6 +345,7 @@ def main():
 
             # print('start validation')
             acc_top1, acc_top5 = validation(opts, validation_loader, ema_model, epoch, use_gpu)
+            print(acc_top1)
             is_best = acc_top1 > best_acc
             best_acc = max(acc_top1, best_acc)
             if is_best:
