@@ -49,7 +49,7 @@ def weights_init_kaiming(m):
     elif classname.find('BatchNorm') != -1:
         if m.affine is not None:
             init.constant_(m.weight.data, 1.0)
-            init.constant_(m.bias.data, 0.0)        
+            init.constant_(m.bias.data, 0.0)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -112,8 +112,10 @@ class Res18_basic(nn.Module):
         model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
         model_ft.fc = nn.Sequential()
         self.model = model_ft
-        self.fc_embed = nn.Linear(512, fea_dim)
-        self.fc_embed.apply(weights_init_classifier)
+        # self.fc_embed = nn.Linear(512, fea_dim)
+        # self.fc_embed.apply(weights_init_classifier)
+        self.fc_embed1 = nn.Linear(512, 512)
+        self.fc_embed2 = nn.Linear(512, class_num)
         self.classifier = ClassBlock(512, class_num)
         self.classifier.apply(weights_init_classifier)
         
@@ -128,7 +130,8 @@ class Res18_basic(nn.Module):
         x = self.model.layer4(x)
         x = self.model.avgpool(x)
         fea =  x.view(x.size(0), -1)
-        embed_fea = self.fc_embed(fea)
+        # embed_fea = self.fc_embed(fea)
+        embed_fea = self.fc_embed2(F.relu(self.fc_embed1(fea)))
         pred = self.classifier(fea)
         return embed_fea, pred 
 
@@ -222,5 +225,4 @@ class Dense121(nn.Module):
         pred = self.model.classifier(fea)        
         return embed_fea, pred              
         
-
             

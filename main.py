@@ -27,6 +27,9 @@ import torch.nn.functional as F
 from ImageDataLoader import SimpleImageLoader
 from models import Res18, Res50, Dense121, Res18_basic
 
+from Simloss import SimLoss
+from Simloss import NT_Xent
+
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
 
@@ -198,14 +201,14 @@ parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
-parser.add_argument('--name',default='Res18_weight_high', type=str, help='output model name')
+parser.add_argument('--name',default='Res18_sim', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
 parser.add_argument('--batchsize', default=200, type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
 parser.add_argument('--momentum', type=float, default=0.9, metavar='LR', help=' ')
-parser.add_argument('--lr', type=float, default=2e-4, metavar='LR', help='learning rate')
+parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate')
 parser.add_argument('--imResize', default=256, type=int, help='')
 parser.add_argument('--imsize', default=224, type=int, help='')
 parser.add_argument('--ema_decay', type=float, default=0.999, help='ema decay rate (0: no ema model)')
@@ -216,8 +219,11 @@ parser.add_argument('--save_epoch', type=int, default=50, help='saving epoch int
 
 # hyper-parameters for mix-match
 parser.add_argument('--alpha', default=0.75, type=float)
-parser.add_argument('--lambda-u', default=250, type=float)
+parser.add_argument('--lambda-u', default=50, type=float)
 parser.add_argument('--T', default=0.25, type=float)
+
+#hyper-parameters for sim-reg
+parser.add_argument('--lambda-s', default=0.125, type=float)
 
 ### DO NOT MODIFY THIS BLOCK ###
 # arguments for nsml 
@@ -242,6 +248,7 @@ def main():
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opts.gpu_ids
     use_gpu = torch.cuda.is_available()
+    # use_gpu = 0
     if use_gpu:
         opts.cuda = 1
         print("Currently using GPU {}".format(opts.gpu_ids))
@@ -339,8 +346,8 @@ def main():
         best_acc = -1
         for epoch in range(opts.start_epoch, opts.epochs + 1):
             # print('start training')
-            loss, loss_x, loss_u, avg_top1, avg_top5 = train(opts, train_loader, unlabel_loader, model, train_criterion, optimizer, ema_optimizer, epoch, use_gpu)
-            print('epoch {:03d}/{:03d} finished, loss: {:.3f}, loss_x: {:.3f}, loss_un: {:.3f}, avg_top1: {:.3f}%, avg_top5: {:.3f}%'.format(epoch, opts.epochs, loss, loss_x, loss_u, avg_top1, avg_top5))
+            loss, loss_x, loss_u, loss_sim, avg_top1, avg_top5 = train(opts, train_loader, unlabel_loader, model, train_criterion, optimizer, ema_optimizer, epoch, use_gpu)
+            print('epoch {:03d}/{:03d} finished, loss: {:.3f}, loss_x: {:.3f}, loss_un: {:.3f}, loss_sim: {:.3f}, avg_top1: {:.3f}%, avg_top5: {:.3f}%'.format(epoch, opts.epochs, loss, loss_x, loss_u, loss_sim, avg_top1, avg_top5))
             # scheduler.step()
 
             # print('start validation')
@@ -367,10 +374,12 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
     losses = AverageMeter()
     losses_x = AverageMeter()
     losses_un = AverageMeter()
+    losses_sim = AverageMeter()
     
     losses_curr = AverageMeter()
     losses_x_curr = AverageMeter()
     losses_un_curr = AverageMeter()
+    losses_sim_curr = AverageMeter()
 
     weight_scale = AverageMeter()
     acc_top1 = AverageMeter()
@@ -384,6 +393,7 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
     while not out:
         labeled_train_iter = iter(train_loader)
         unlabeled_train_iter = iter(unlabel_loader)
+        # sim_unlabeld_train_iter = iter(unlabel_loader)
         for batch_idx in range(len(train_loader)):
             try:
                 data = labeled_train_iter.next()
@@ -447,19 +457,27 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             # put interleaved samples back
             logits = interleave(logits, batch_size)
             logits_x = logits[0]
-            logits_u = torch.cat(logits[1:], dim=0)            
-            
+            logits_u = torch.cat(logits[1:], dim=0)     
+
+            # sim_crit = SimLoss()
+            # loss_sim = sim_crit(model, sim_unlabeld_train_iter, len(unlabel_loader),use_gpu)
+
+            sim_criterion = NT_Xent(opts.batchsize, opts.T)
+            # loss_sim = sim_criterion(norm_embed_u1, norm_embed_u2)
+            loss_sim = sim_criterion(embed_u1, embed_u2)
             loss_x, loss_un, weigts_mixing = criterion(logits_x, mixed_target[:batch_size], logits_u, mixed_target[batch_size:], epoch+batch_idx/len(train_loader), opts.epochs)
-            loss = loss_x + weigts_mixing * loss_un
+            loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim
 
             losses.update(loss.item(), inputs_x.size(0))
             losses_x.update(loss_x.item(), inputs_x.size(0))
             losses_un.update(loss_un.item(), inputs_x.size(0))
+            losses_sim.update(loss_sim.item(), inputs_x.size(0))
             weight_scale.update(weigts_mixing, inputs_x.size(0))
 
             losses_curr.update(loss.item(), inputs_x.size(0))
             losses_x_curr.update(loss_x.item(), inputs_x.size(0))
             losses_un_curr.update(loss_un.item(), inputs_x.size(0))
+            losses_sim_curr.update(loss_sim.item(), inputs_x.size(0))
                     
             # compute gradient and do SGD step
             loss.backward()
@@ -471,10 +489,11 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
                 embed_x, pred_x1 = model(inputs_x)
 
             if IS_ON_NSML and global_step % opts.log_interval == 0:
-                nsml.report(step=global_step, loss=losses_curr.avg, loss_x=losses_x_curr.avg, loss_un=losses_un_curr.avg)
+                nsml.report(step=global_step, loss=losses_curr.avg, loss_x=losses_x_curr.avg, loss_un=losses_un_curr.avg, loss_sim=losses_sim_curr.avg)
                 losses_curr.reset()
                 losses_x_curr.reset()
                 losses_un_curr.reset()
+                losses_sim_curr.reset()
 
             acc_top1b = top_n_accuracy_score(targets_org.data.cpu().numpy(), pred_x1.data.cpu().numpy(), n=1)*100
             acc_top5b = top_n_accuracy_score(targets_org.data.cpu().numpy(), pred_x1.data.cpu().numpy(), n=5)*100    
@@ -488,7 +507,7 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
                 out = True
                 break
         
-    return losses.avg, losses_x.avg, losses_un.avg, acc_top1.avg, acc_top5.avg
+    return losses.avg, losses_x.avg, losses_un.avg, losses_sim.avg, acc_top1.avg, acc_top5.avg
 
 
 def validation(opts, validation_loader, model, epoch, use_gpu):
