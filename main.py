@@ -464,7 +464,8 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
 
             sim_criterion = NT_Xent(opts.batchsize, opts.T)
             # loss_sim = sim_criterion(norm_embed_u1, norm_embed_u2)
-            loss_sim = sim_criterion(embed_u1, embed_u2)
+            # loss_sim = sim_criterion(embed_u1, embed_u2)
+            loss_sim = sim_criterion(pred_u1, pred_u2)
             loss_x, loss_un, weigts_mixing = criterion(logits_x, mixed_target[:batch_size], logits_u, mixed_target[batch_size:], epoch+batch_idx/len(train_loader), opts.epochs)
             loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim
 

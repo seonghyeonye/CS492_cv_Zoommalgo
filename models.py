@@ -173,8 +173,10 @@ class Res50(nn.Module):
         model_ft.avgpool = nn.AdaptiveAvgPool2d((1,1))
         model_ft.fc = nn.Sequential()        
         self.model = model_ft
-        self.fc_embed = nn.Linear(2048, fea_dim)
-        self.fc_embed.apply(weights_init_classifier)
+        # self.fc_embed = nn.Linear(2048, fea_dim)
+        # self.fc_embed.apply(weights_init_classifier)
+        self.fc_embed1 = nn.Linear(512, 512)
+        self.fc_embed2 = nn.Linear(512, class_num)
         self.classifier = ClassBlock(2048, class_num)
         self.classifier.apply(weights_init_classifier)        
         
@@ -189,7 +191,7 @@ class Res50(nn.Module):
         x = self.model.layer4(x)
         x = self.model.avgpool(x)
         fea =  x.view(x.size(0), -1)
-        embed_fea = self.fc_embed(fea)
+        embed_fea = self.fc_embed2(F.relu(self.fc_embed1(fea)))
         pred = self.classifier(fea)
         return embed_fea, pred     
         
