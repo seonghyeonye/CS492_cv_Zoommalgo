@@ -197,18 +197,18 @@ def bind_nsml(model):
 ######################################################################
 parser = argparse.ArgumentParser(description='Sample Product200K Training')
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N', help='number of start epoch (default: 1)')
-parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=250, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
 parser.add_argument('--name',default='Res18_sim', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--batchsize', default=200, type=int, help='batchsize')
+parser.add_argument('--batchsize', default=300, type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
 parser.add_argument('--momentum', type=float, default=0.9, metavar='LR', help=' ')
-parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate')
+parser.add_argument('--lr', type=float, default=1e-3, metavar='LR', help='learning rate')
 parser.add_argument('--imResize', default=256, type=int, help='')
 parser.add_argument('--imsize', default=224, type=int, help='')
 parser.add_argument('--ema_decay', type=float, default=0.999, help='ema decay rate (0: no ema model)')
@@ -220,10 +220,10 @@ parser.add_argument('--save_epoch', type=int, default=50, help='saving epoch int
 # hyper-parameters for mix-match
 parser.add_argument('--alpha', default=0.75, type=float)
 parser.add_argument('--lambda-u', default=50, type=float)
-parser.add_argument('--T', default=0.25, type=float)
+parser.add_argument('--T', default=0.1, type=float)
 
 #hyper-parameters for sim-reg
-parser.add_argument('--lambda-s', default=0.125, type=float)
+parser.add_argument('--lambda-s', default=1, type=float)
 
 ### DO NOT MODIFY THIS BLOCK ###
 # arguments for nsml 
@@ -352,7 +352,7 @@ def main():
 
             # print('start validation')
             acc_top1, acc_top5 = validation(opts, validation_loader, ema_model, epoch, use_gpu)
-            print(acc_top1)
+            print(acc_top1, acc_top5)
             is_best = acc_top1 > best_acc
             best_acc = max(acc_top1, best_acc)
             if is_best:
