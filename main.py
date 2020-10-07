@@ -27,8 +27,7 @@ import torch.nn.functional as F
 from ImageDataLoader import SimpleImageLoader
 from models import Res18, Res50, Dense121, Res18_basic
 
-from Simloss import SimLoss
-from Simloss import NT_Xent
+from Simloss import SimLoss, NT_Xent, SimLoss2
 
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
@@ -197,18 +196,18 @@ def bind_nsml(model):
 ######################################################################
 parser = argparse.ArgumentParser(description='Sample Product200K Training')
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N', help='number of start epoch (default: 1)')
-parser.add_argument('--epochs', type=int, default=250, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=300, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
 parser.add_argument('--name',default='Res18_sim', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--batchsize', default=300, type=int, help='batchsize')
+parser.add_argument('--batchsize', default=200, type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
 parser.add_argument('--momentum', type=float, default=0.9, metavar='LR', help=' ')
-parser.add_argument('--lr', type=float, default=1e-3, metavar='LR', help='learning rate')
+parser.add_argument('--lr', type=float, default=1e-4, metavar='LR', help='learning rate')
 parser.add_argument('--imResize', default=256, type=int, help='')
 parser.add_argument('--imsize', default=224, type=int, help='')
 parser.add_argument('--ema_decay', type=float, default=0.999, help='ema decay rate (0: no ema model)')
@@ -340,7 +339,7 @@ def main():
         train_criterion = SemiLoss()
 
         # INSTANTIATE STEP LEARNING SCHEDULER CLASS
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,  milestones=[50, 150], gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,  milestones=[200, 250], gamma=0.5)
 
         # Train and Validation 
         best_acc = -1
@@ -348,7 +347,7 @@ def main():
             # print('start training')
             loss, loss_x, loss_u, loss_sim, avg_top1, avg_top5 = train(opts, train_loader, unlabel_loader, model, train_criterion, optimizer, ema_optimizer, epoch, use_gpu)
             print('epoch {:03d}/{:03d} finished, loss: {:.3f}, loss_x: {:.3f}, loss_un: {:.3f}, loss_sim: {:.3f}, avg_top1: {:.3f}%, avg_top5: {:.3f}%'.format(epoch, opts.epochs, loss, loss_x, loss_u, loss_sim, avg_top1, avg_top5))
-            # scheduler.step()
+            scheduler.step()
 
             # print('start validation')
             acc_top1, acc_top5 = validation(opts, validation_loader, ema_model, epoch, use_gpu)
@@ -462,23 +461,23 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             # sim_crit = SimLoss()
             # loss_sim = sim_crit(model, sim_unlabeld_train_iter, len(unlabel_loader),use_gpu)
 
-            sim_criterion = NT_Xent(opts.batchsize, opts.T)
-            # loss_sim = sim_criterion(norm_embed_u1, norm_embed_u2)
-            # loss_sim = sim_criterion(embed_u1, embed_u2)
-            loss_sim = sim_criterion(pred_u1, pred_u2)
+            # sim_criterion = NT_Xent(opts.batchsize, opts.T)
+            sim_criterion2 = SimLoss2()
+            # loss_sim = sim_criterion(pred_u1, pred_u2)
+            loss_sim2 = sim_criterion2([pred_u1, pred_u2], opts.batchsize, opts.T)
             loss_x, loss_un, weigts_mixing = criterion(logits_x, mixed_target[:batch_size], logits_u, mixed_target[batch_size:], epoch+batch_idx/len(train_loader), opts.epochs)
-            loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim
+            loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim2
 
             losses.update(loss.item(), inputs_x.size(0))
             losses_x.update(loss_x.item(), inputs_x.size(0))
             losses_un.update(loss_un.item(), inputs_x.size(0))
-            losses_sim.update(loss_sim.item(), inputs_x.size(0))
+            losses_sim.update(loss_sim2.item(), inputs_x.size(0))
             weight_scale.update(weigts_mixing, inputs_x.size(0))
 
             losses_curr.update(loss.item(), inputs_x.size(0))
             losses_x_curr.update(loss_x.item(), inputs_x.size(0))
             losses_un_curr.update(loss_un.item(), inputs_x.size(0))
-            losses_sim_curr.update(loss_sim.item(), inputs_x.size(0))
+            losses_sim_curr.update(loss_sim2.item(), inputs_x.size(0))
                     
             # compute gradient and do SGD step
             loss.backward()
