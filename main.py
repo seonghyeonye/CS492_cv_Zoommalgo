@@ -201,7 +201,7 @@ parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help
 
 # basic settings
 parser.add_argument('--name',default='SimMixMatch', type=str, help='output model name')
-parser.add_argument('--gpu_ids',default='0, 1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
+parser.add_argument('--gpu_ids',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
 parser.add_argument('--batchsize', default=512, type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
@@ -259,17 +259,17 @@ def main():
 
     # Set model
     model = Res18_basic(NUM_CLASSES)
-    model.eval()
+    # model.eval()
 
     # set EMA model
     ema_model = Res18_basic(NUM_CLASSES)
-    for param in ema_model.parameters():
-        param.detach_()
-    ema_model.eval()
+    # for param in ema_model.parameters():
+    #     param.detach_()
+    # ema_model.eval()
 
-    parameters = filter(lambda p: p.requires_grad, model.parameters())
-    n_parameters = sum([p.data.nelement() for p in model.parameters()])
-    print('  + Number of params: {}'.format(n_parameters))
+    # parameters = filter(lambda p: p.requires_grad, model.parameters())
+    # n_parameters = sum([p.data.nelement() for p in model.parameters()])
+    # print('  + Number of params: {}'.format(n_parameters))
 
     if use_gpu:
         model.cuda()
@@ -283,6 +283,26 @@ def main():
         if opts.pause:
             nsml.paused(scope=locals())
     ################################
+
+    nsml.load(checkpoint="SimMixMatch_e299", session='kaist002/fashion_dataset/280')
+    # exit()
+    bind_nsml(model)
+    nsml.load(checkpoint="SimMixMatch_e299", session='kaist002/fashion_dataset/280')
+    nsml.save('saved')
+    # exit()
+    bind_nsml(model_for_test)
+    ema_model = model_for_test
+
+    model.eval()
+    for param in ema_model.parameters():
+        param.detach_()
+    ema_model.eval()
+
+    # model_for_test = ema_model
+
+    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    n_parameters = sum([p.data.nelement() for p in model.parameters()])
+    print('  + Number of params: {}'.format(n_parameters))
 
     if opts.mode == 'train':
         # set multi-gpu
@@ -339,10 +359,10 @@ def main():
         train_criterion = SemiLoss()
 
         # INSTANTIATE STEP LEARNING SCHEDULER CLASS
-        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,  milestones=[200], gamma=0.5)
+        # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,  milestones=[100, 200], gamma=0.1)
 
         # Train and Validation 
-        best_acc = -1
+        best_acc = (-1, -1)
         for epoch in range(opts.start_epoch, opts.epochs + 1):
             # print('start training')
             loss, loss_x, loss_u, loss_sim, avg_top1, avg_top5 = train(opts, train_loader, unlabel_loader, model, train_criterion, optimizer, ema_optimizer, epoch, use_gpu)
@@ -352,10 +372,18 @@ def main():
             # print('start validation')
             acc_top1, acc_top5 = validation(opts, validation_loader, ema_model, epoch, use_gpu)
             print(acc_top1, acc_top5)
-            is_best = acc_top1 > best_acc
-            best_acc = max(acc_top1, best_acc)
+            is_best = False
+            if acc_top1 > best_acc[0]:
+                best_acc = (acc_top1, acc_top5)
+                is_best = True
+            elif acc_top1 == best_acc[0]:
+                if acc_top5 > best_acc[1]:
+                      best_acc = (acc_top1, acc_top5)
+                      is_best = True
+            # is_best = (acc_top1 + acc_top5) > best_acc
+            # best_acc = max(acc_top1, best_acc)
             if is_best:
-                print('model achieved the best accuracy ({:.3f}%) - saving best checkpoint...'.format(best_acc))
+                print('model achieved the best accuracy ({}%) - saving best checkpoint...'.format(best_acc))
                 if IS_ON_NSML:
                     nsml.save(opts.name + '_best')
                 else:
