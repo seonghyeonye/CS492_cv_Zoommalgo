@@ -27,10 +27,15 @@ import torch.nn.functional as F
 from ImageDataLoader import SimpleImageLoader
 from models import Res18, Res50, Dense121, Res18_basic
 
-from Simloss import SimLoss, NT_Xent, SimLoss2
+from Simloss import SimLoss, SimLoss2
 
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
+
+
+import apex
+from apex import amp
+from apex.fp16_utils import *
 
 NUM_CLASSES = 265
 
@@ -196,13 +201,13 @@ def bind_nsml(model):
 ######################################################################
 parser = argparse.ArgumentParser(description='Sample Product200K Training')
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N', help='number of start epoch (default: 1)')
-parser.add_argument('--epochs', type=int, default=300, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=600, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
 parser.add_argument('--name',default='SimMixMatch', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--batchsize', default=512, type=int, help='batchsize')
+parser.add_argument('--batchsize', default='840', type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
@@ -259,17 +264,17 @@ def main():
 
     # Set model
     model = Res18_basic(NUM_CLASSES)
-    # model.eval()
+    model.eval()
 
     # set EMA model
     ema_model = Res18_basic(NUM_CLASSES)
-    # for param in ema_model.parameters():
-    #     param.detach_()
-    # ema_model.eval()
+    for param in ema_model.parameters():
+        param.detach_()
+    ema_model.eval()
 
-    # parameters = filter(lambda p: p.requires_grad, model.parameters())
-    # n_parameters = sum([p.data.nelement() for p in model.parameters()])
-    # print('  + Number of params: {}'.format(n_parameters))
+    parameters = filter(lambda p: p.requires_grad, model.parameters())
+    n_parameters = sum([p.data.nelement() for p in model.parameters()])
+    print('  + Number of params: {}'.format(n_parameters))
 
     if use_gpu:
         model.cuda()
@@ -284,25 +289,11 @@ def main():
             nsml.paused(scope=locals())
     ################################
 
-    nsml.load(checkpoint="SimMixMatch_e299", session='kaist002/fashion_dataset/280')
-    # exit()
-    bind_nsml(model)
-    nsml.load(checkpoint="SimMixMatch_e299", session='kaist002/fashion_dataset/280')
-    nsml.save('saved')
-    # exit()
-    bind_nsml(model_for_test)
-    ema_model = model_for_test
+    # Set optimizer
+    optimizer = optim.Adam(model.parameters(), lr=opts.lr, weight_decay=5e-4)
+    ema_optimizer= WeightEMA(model, ema_model, lr=opts.lr, alpha=opts.ema_decay)
 
-    model.eval()
-    for param in ema_model.parameters():
-        param.detach_()
-    ema_model.eval()
-
-    # model_for_test = ema_model
-
-    parameters = filter(lambda p: p.requires_grad, model.parameters())
-    n_parameters = sum([p.data.nelement() for p in model.parameters()])
-    print('  + Number of params: {}'.format(n_parameters))
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O1", loss_scale="dynamic") 
 
     if opts.mode == 'train':
         # set multi-gpu
@@ -350,10 +341,6 @@ def main():
 
         if opts.steps_per_epoch < 0:
             opts.steps_per_epoch = len(train_loader)
-
-        # Set optimizer
-        optimizer = optim.Adam(model.parameters(), lr=opts.lr, weight_decay=5e-4)
-        ema_optimizer= WeightEMA(model, ema_model, lr=opts.lr, alpha=opts.ema_decay)
 
         # INSTANTIATE LOSS CLASS
         train_criterion = SemiLoss()
@@ -508,7 +495,9 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             losses_sim_curr.update(loss_sim2.item(), inputs_x.size(0))
                     
             # compute gradient and do SGD step
-            loss.backward()
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+            # loss.backward()
             optimizer.step()
             ema_optimizer.step()
             
