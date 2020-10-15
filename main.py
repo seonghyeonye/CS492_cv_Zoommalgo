@@ -33,9 +33,9 @@ import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
 
 
-import apex
-from apex import amp
-from apex.fp16_utils import *
+# import apex
+# from apex import amp
+# from apex.fp16_utils import *
 
 NUM_CLASSES = 265
 
@@ -293,7 +293,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=opts.lr, weight_decay=5e-4)
     ema_optimizer= WeightEMA(model, ema_model, lr=opts.lr, alpha=opts.ema_decay)
 
-    model, optimizer = amp.initialize(model, optimizer, opt_level="O1", loss_scale="dynamic") 
+    # model, optimizer = amp.initialize(model, optimizer, opt_level="O1", loss_scale="dynamic") 
 
     if opts.mode == 'train':
         # set multi-gpu
@@ -495,9 +495,9 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             losses_sim_curr.update(loss_sim2.item(), inputs_x.size(0))
                     
             # compute gradient and do SGD step
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-            # loss.backward()
+            # with amp.scale_loss(loss, optimizer) as scaled_loss:
+            #     scaled_loss.backward()
+            loss.backward()
             optimizer.step()
             ema_optimizer.step()
             
