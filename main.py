@@ -15,6 +15,7 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch_optimizer as torch_optim
 from torch.optim import lr_scheduler
 import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
@@ -27,7 +28,7 @@ import torch.nn.functional as F
 from ImageDataLoader import SimpleImageLoader
 from models import Res18, Res50, Dense121, Res18_basic
 
-from Simloss import SimLoss, SimLoss2
+from Simloss import SimLoss
 
 import nsml
 from nsml import DATASET_PATH, IS_ON_NSML
@@ -85,6 +86,9 @@ class SemiLoss(object):
         probs_u = torch.softmax(outputs_u, dim=1)
         Lx = -torch.mean(torch.sum(F.log_softmax(outputs_x, dim=1) * targets_x, dim=1))
         Lu = torch.mean((probs_u - targets_u)**2)
+        # sim = nn.CosineSimilarity(dim=-1)
+        # Lu = torch.mean(sim(probs_u, targets_u))
+        # Lu = criterion([probs_u, targets_u], opts.batchsize, opts.T)
         return Lx, Lu, opts.lambda_u * linear_rampup(epoch, final_epoch)
 
 class WeightEMA(object):
@@ -201,13 +205,13 @@ def bind_nsml(model):
 ######################################################################
 parser = argparse.ArgumentParser(description='Sample Product200K Training')
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N', help='number of start epoch (default: 1)')
-parser.add_argument('--epochs', type=int, default=600, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=300, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
 parser.add_argument('--name',default='SimMixMatch', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--batchsize', default='840', type=int, help='batchsize')
+parser.add_argument('--batchsize', default='512', type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
@@ -291,6 +295,15 @@ def main():
 
     # Set optimizer
     optimizer = optim.Adam(model.parameters(), lr=opts.lr, weight_decay=5e-4)
+    # optimizer = torch_optim.Yogi(
+    # model.parameters(),
+    # lr= 7*opts.lr,
+    # betas=(0.9, 0.999),
+    # eps=1e-3,
+    # initial_accumulator=1e-6,
+    # weight_decay=5e-4,
+    # )
+    # optimizer = LARS(optim.SGD(model.parameters(), lr=opts.lr))
     ema_optimizer= WeightEMA(model, ema_model, lr=opts.lr, alpha=opts.ema_decay)
 
     # model, optimizer = amp.initialize(model, optimizer, opt_level="O1", loss_scale="dynamic") 
@@ -451,7 +464,7 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             lamda= max(lamda, 1-lamda)    
             newidx = torch.randperm(all_inputs.size(0))
             input_a, input_b = all_inputs, all_inputs[newidx]
-            target_a, target_b = all_targets, all_targets[newidx]        
+            target_a, target_b = all_targets, all_targets[newidx]    
             
             mixed_input = lamda * input_a + (1 - lamda) * input_b
             mixed_target = lamda * target_a + (1 - lamda) * target_b
@@ -473,11 +486,8 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             logits_x = logits[0]
             logits_u = torch.cat(logits[1:], dim=0)     
 
-            # sim_crit = SimLoss()
-            # loss_sim = sim_crit(model, sim_unlabeld_train_iter, len(unlabel_loader),use_gpu)
-
             # sim_criterion = NT_Xent(opts.batchsize, opts.T)
-            sim_criterion2 = SimLoss2()
+            sim_criterion2 = SimLoss()
             # loss_sim = sim_criterion(pred_u1, pred_u2)
             loss_sim2 = sim_criterion2([pred_u1, pred_u2], opts.batchsize, opts.T)
             loss_x, loss_un, weigts_mixing = criterion(logits_x, mixed_target[:batch_size], logits_u, mixed_target[batch_size:], epoch+batch_idx/len(train_loader), opts.epochs)

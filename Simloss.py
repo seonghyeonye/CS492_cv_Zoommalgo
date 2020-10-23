@@ -3,24 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-def dotsimilarity(x1, x2):
-    x1_flat = torch.flatten(x1)
-    x2_flat = torch.flatten(x2)
-
-    return torch.dot(x1_flat, x2_flat)
-
-
-def SimLoss (self, projs_u1, projs_u2, batch_size, temparature):
-        # unlabeled_train_iter = iter(unlabel_loader)
-        sim = nn.CosineSimilarity(dim=-1)
-        u1s = F.normalize(projs_u1, dim=1)
-        u2s = F.normalize(projs_u2, dim=1)
-        projs_cat = torch.cat((u1s, u2s), dim=0)
-        sim_mat = sim(u1s.unsqueeze(1), u2s.unsqueeze(0))
-        
-
-class SimLoss2(object):
+class SimLoss(object):
     def __call__(self, pred_list, batch_size, T):
         k = len(pred_list)
         # concatenate predicted results for augmented unlabeled data
@@ -52,8 +35,8 @@ class SimLoss2(object):
         neg_mask.to(torch.device('cuda'))
         
         # multiply mask to similiarity matrix to get pairs
-        pos_pairs = sim_mat[pos_mask].view(2 * batch_size, -1)
-        neg_pairs = sim_mat[neg_mask].view(2 * batch_size, -1)
+        pos_pairs = sim_mat[pos_mask].view(k * batch_size, -1)
+        neg_pairs = sim_mat[neg_mask].view(k * batch_size, -1)
 
         logits = torch.cat((pos_pairs, neg_pairs), dim=1) / T
         labels = torch.zeros(k * batch_size).to(torch.device('cuda')).long()
