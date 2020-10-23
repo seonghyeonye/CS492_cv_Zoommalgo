@@ -20,8 +20,8 @@ Semi-supervised learning using NAVER Fashion dataset
 
 | Model                   | Top1 Validation Accuracy | Top5 Validation Accuracy | Top Test Score |
 | -----------------------:| ------------------------:| ------------------------:| --------------:|
-| MixMatch Baseline Model | 10.1                     | 18.7                     | 0.30           |
-| SimMixMatch (Ours)      | **20.4**                 | **35.6**                 |                |
+| MixMatch Baseline Model | 10.1                     | 18.7                     |                |
+| SimMixMatch (Ours)      | **20.4**                 | **35.6**                 | 0.30           |
 
 ## References
 * <a href = "https://arxiv.org/abs/2002.05709">A Simple Framework for Contrastive Learning of Visual Representations (2020)</a>
