@@ -16,6 +16,8 @@ Semi-supervised learning using NAVER Fashion dataset
 
 ## Results
 * After fintuning with appropriate hyperparameters, our best score was 20.4% for top1 accuracy and 35.6% for top5 accuracy. We ranked third place in <a href= "https://ai.nsml.navercorp.com/">NSML</a> leaderboard system.
+
+
 | Model                   | Top1 Accuracy | Top5 Accuracy |
 | -----------------------:| -------------:| -------------:|
 | MixMatch Baseline Model | 10.1          | 18.7          |
