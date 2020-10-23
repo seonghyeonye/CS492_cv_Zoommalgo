@@ -5,7 +5,7 @@ Semi-supervised learning using NAVER Fashion dataset
 * Apex (using mixed precision for large batch size)
 * https://github.com/NVIDIA/apex 
 
-## Run program
+## Run Model
 * python main.py
 
 ## Dataset 
@@ -15,13 +15,13 @@ Semi-supervised learning using NAVER Fashion dataset
 * SimMixMatch is a model combining contrastive learning from SimCLR model to MixMatch model. We found that our model have both properties of SimCLR and MixMatch.
 
 ## Results
-* After fintuning with appropriate hyperparameters, our best score was 20.4% for top1 accuracy and 35.6% for top5 accuracy. We ranked third place in <a href= "https://ai.nsml.navercorp.com/">NSML</a> leaderboard system.
+* After fintuning with appropriate hyperparameters, our best validation accuracy score was 20.4% for top1 accuracy and 35.6% for top5 accuracy. We ranked third place in <a href= "https://ai.nsml.navercorp.com/">NSML</a> leaderboard system.
 
 
-| Model                   | Top1 Accuracy | Top5 Accuracy |
-| -----------------------:| -------------:| -------------:|
-| MixMatch Baseline Model | 10.1          | 18.7          |
-| SimMixMatch (Ours)      | **20.4**      | **35.6**      |
+| Model                   | Top1 Validation Accuracy | Top5 Validation Accuracy | Top Test Score |
+| -----------------------:| ------------------------:| ------------------------:| --------------:|
+| MixMatch Baseline Model | 10.1                     | 18.7                     | 0.30           |
+| SimMixMatch (Ours)      | **20.4**                 | **35.6**                 |                |
 
 ## References
 * <a href = "https://arxiv.org/abs/2002.05709">A Simple Framework for Contrastive Learning of Visual Representations (2020)</a>
