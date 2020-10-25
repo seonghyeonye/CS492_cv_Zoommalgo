@@ -29,4 +29,4 @@ Semi-supervised learning using NAVER Fashion dataset
 ## References
 * <a href = "https://arxiv.org/abs/2002.05709">A Simple Framework for Contrastive Learning of Visual Representations (2020)</a>
 * <a href = "https://arxiv.org/abs/1905.02249">MixMatch: A Holistic Approach to Semi-Supervised Learning</a>
-* <a href = "https://papers.nips.cc/paper/8186-adaptive-methods-for-nonconvex-optimization">Adaptive Methods for Nonconvex Optimizatio</a>
+* <a href = "https://papers.nips.cc/paper/8186-adaptive-methods-for-nonconvex-optimization">Adaptive Methods for Nonconvex Optimization</a>
