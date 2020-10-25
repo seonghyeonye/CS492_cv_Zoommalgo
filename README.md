@@ -6,7 +6,7 @@ Semi-supervised learning using NAVER Fashion dataset
 * https://github.com/NVIDIA/apex 
 
 ## Path to Best Pretrained Model
-* kaist002/fashion_dataset/469 SimMixMatch_best
+* kaist002/fashion_dataset/280 SimMixMatch_best
 
 ## Run Model
 * python main.py
