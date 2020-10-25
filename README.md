@@ -5,6 +5,9 @@ Semi-supervised learning using NAVER Fashion dataset
 * Apex (using mixed precision for large batch size)
 * https://github.com/NVIDIA/apex 
 
+## Path to Best Pretrained Model
+* kaist002/fashion_dataset/469 SimMixMatch_best
+
 ## Run Model
 * python main.py
 * Currently, the hyperparameters are fixed for the best result. If you would like to change hyperparameters, change the values in parser from Options (line 208)
