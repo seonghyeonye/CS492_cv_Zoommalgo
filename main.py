@@ -205,13 +205,13 @@ def bind_nsml(model):
 ######################################################################
 parser = argparse.ArgumentParser(description='Sample Product200K Training')
 parser.add_argument('--start_epoch', type=int, default=1, metavar='N', help='number of start epoch (default: 1)')
-parser.add_argument('--epochs', type=int, default=300, metavar='N', help='number of epochs to train (default: 200)')
+parser.add_argument('--epochs', type=int, default=600, metavar='N', help='number of epochs to train (default: 200)')
 parser.add_argument('--steps_per_epoch', type=int, default=30, metavar='N', help='number of steps to train per epoch (-1: num_data//batchsize)')
 
 # basic settings
 parser.add_argument('--name',default='SimMixMatch', type=str, help='output model name')
 parser.add_argument('--gpu_ids',default='0,1', type=str,help='gpu_ids: e.g. 0  0,1,2  0,2')
-parser.add_argument('--batchsize', default='512', type=int, help='batchsize')
+parser.add_argument('--batchsize', default='840', type=int, help='batchsize')
 parser.add_argument('--seed', type=int, default=123, help='random seed')
 
 # basic hyper-parameters
@@ -317,6 +317,7 @@ def main():
         ema_model.train()
 
         # Set dataloader
+        # Commnet out or add augmentation in transform.Compose
         train_ids, val_ids, unl_ids = split_ids(os.path.join(DATASET_PATH, 'train/train_label'), 0.2)
         print('found {} train, {} validation and {} unlabeled images'.format(len(train_ids), len(val_ids), len(unl_ids)))
         color_jitter = transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
@@ -486,12 +487,12 @@ def train(opts, train_loader, unlabel_loader, model, criterion, optimizer, ema_o
             logits_x = logits[0]
             logits_u = torch.cat(logits[1:], dim=0)     
 
-            # sim_criterion = NT_Xent(opts.batchsize, opts.T)
-            sim_criterion2 = SimLoss()
+
+            sim_criterion2 = SimLoss()     # Contrastive Loss
             # loss_sim = sim_criterion(pred_u1, pred_u2)
             loss_sim2 = sim_criterion2([pred_u1, pred_u2], opts.batchsize, opts.T)
             loss_x, loss_un, weigts_mixing = criterion(logits_x, mixed_target[:batch_size], logits_u, mixed_target[batch_size:], epoch+batch_idx/len(train_loader), opts.epochs)
-            loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim2
+            loss = loss_x + weigts_mixing * loss_un + opts.lambda_s * loss_sim2 # Add all losses
 
             losses.update(loss.item(), inputs_x.size(0))
             losses_x.update(loss_x.item(), inputs_x.size(0))

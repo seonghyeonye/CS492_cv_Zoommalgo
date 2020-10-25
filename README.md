@@ -15,7 +15,7 @@ Semi-supervised learning using NAVER Fashion dataset
 
 ## Method
 * SimMixMatch is a model combining contrastive learning from the SimCLR model to the MixMatch model. We found that our model has both properties of SimCLR and MixMatch.
-* Class SimLoss2() in Simloss.py plays an important role in contrastive learning. It calculates loss with cosine similarity and is generalized by K number of augmentations.
+* Class SimLoss() in Simloss.py plays an important role in contrastive learning. It calculates loss with cosine similarity and is generalized by K number of augmentations.
 
 ## Results
 * After fintuning with appropriate hyperparameters, our best validation accuracy score was 20.4% for top1 accuracy and 35.6% for top5 accuracy. We ranked third place in <a href= "https://ai.nsml.navercorp.com/">NSML</a> leaderboard system.
