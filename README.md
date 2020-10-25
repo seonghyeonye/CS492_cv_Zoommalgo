@@ -7,6 +7,8 @@ Semi-supervised learning using NAVER Fashion dataset
 
 ## Run Model
 * python main.py
+* Currently, the hyperparameters are fixed for the best result. If you would like to change hyperparameters, change the values in parser from Options (line 208)
+* Trained model will be saved every 50 epoch or when top1 and top5 validation accuracy is updated with best value.
 
 ## Dataset 
 * NAVER Fashion dataset is consisted of 1060 train, 265 validation and 58735 unlabeled images. In total, labeled data consist of only 1~2%.
