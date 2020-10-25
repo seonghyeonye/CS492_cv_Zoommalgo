@@ -46,6 +46,6 @@ class SimLoss(object):
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
         # SIMCLR gets average loss
-        loss = criterion(logits, labels) / (k*batch_size)
+        loss = criterion(logits, labels) / (k*(k-1)*batch_size)
 
         return loss
