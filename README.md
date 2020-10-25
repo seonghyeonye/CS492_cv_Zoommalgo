@@ -8,13 +8,14 @@ Semi-supervised learning using NAVER Fashion dataset
 ## Run Model
 * python main.py
 * Currently, the hyperparameters are fixed for the best result. If you would like to change hyperparameters, change the values in parser from Options (line 208)
-* Trained model will be saved every 50 epoch or when top1 and top5 validation accuracy is updated with best value.
+* Trained model will be saved every 50 epoch or when top1 and top5 validation accuracy is updated with the best value.
 
 ## Dataset 
-* NAVER Fashion dataset is consisted of 1060 train, 265 validation and 58735 unlabeled images. In total, labeled data consist of only 1~2%.
+* NAVER Fashion dataset consists of 1060 train, 265 validation, and 58735 unlabeled images. In total, labeled data consist of only 1~2%.
 
 ## Method
-* SimMixMatch is a model combining contrastive learning from SimCLR model to MixMatch model. We found that our model have both properties of SimCLR and MixMatch.
+* SimMixMatch is a model combining contrastive learning from the SimCLR model to the MixMatch model. We found that our model has both properties of SimCLR and MixMatch.
+* Class SimLoss2() in Simloss.py plays an important role in contrastive learning. It calculates loss with cosine similarity and is generalized by K number of augmentations.
 
 ## Results
 * After fintuning with appropriate hyperparameters, our best validation accuracy score was 20.4% for top1 accuracy and 35.6% for top5 accuracy. We ranked third place in <a href= "https://ai.nsml.navercorp.com/">NSML</a> leaderboard system.
